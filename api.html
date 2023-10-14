@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Get Population Data</title>
+</head>
+<body>
+    <h1>Access to population data</h1>
+    <p1>This is a program about population data for the whole country and all cities in Finland</h2>
+    <br><br><p2>If you want to see population data for the whole country, you need to type in: whole country</h3>
+    <p3>If you want to view population data for a city, you need to enter the full name of the city (for example, for Lahti, you need to enter "lahti").</h4>
+    <form id="data-form">
+        <label for="year">Year:</label>
+        <input type="text" id="year" placeholder="Such as: 1990">
+
+        <label for="area">City:</label>
+        <input type="text" id="area" placeholder="Such as: WHOLE COUNTRY">
+
+        <button type="button" id="submit-data">Population data:</button>
+    </form>
+
+    <h2>Result:</h2>
+    <pre id="result"></pre>
+
+    <script>
+        var difference = {};
+        const apiUrl = "https://statfin.stat.fi/PxWeb/api/v1/en/StatFin/synt/statfin_synt_pxt_12dy.px";
+
+        fetch(apiUrl)
+            .then(response => response.json())
+            .then(data => {
+                const alueVariable = data.variables.find(variable => variable.code === "Alue");
+                if (alueVariable) {              
+                    alueVariable.values.forEach((value, index) => {                         
+                    difference[alueVariable.valueTexts[index].toLowerCase()] = value;                                                                  
+                });
+                }
+            })
+            .catch(error => {
+                console.error("Error fetching metadata:", error);
+            });
+
+        document.getElementById('submit-data').addEventListener('click', async function() {
+            const year = document.getElementById('year').value;
+            const areaName = document.getElementById('area').value.toLowerCase();
+
+            const areaCode = difference[areaName];  
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    query: [
+                        {
+                            "code": "Vuosi",
+                            "selection": {
+                                "filter": "item",
+                                "values": [year]
+                            }
+                        },
+                        {
+                            "code": "Alue",
+                            "selection": {
+                                "filter": "item",
+                                "values": [areaCode]  
+                            }
+                        },
+                        {
+                            "code": "Tiedot",
+                            "selection": {
+                                "filter": "item",
+                                "values": ["vaesto"]
+                            }
+                        }
+                    ],
+                    response: {
+                        format: 'json'
+                    }
+                })
+            });
+
+            const data = await response.json();
+            const dataValue = data.data && data.data[0] && data.data[0].values && data.data[0].values[0];
+            document.getElementById('result').innerText = dataValue ? dataValue : 'Data not available';
+
+        });
+    </script>
+</body>
+</html>
